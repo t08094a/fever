@@ -1,0 +1,13 @@
+version: '2'
+services:
+  app:
+    container_name: ionic
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/dev:rw
+      - ~/.gradle:/root/.gradle
+    ports: 
+      - 8100:8100
+      - 35729:35729
