@@ -41,6 +41,7 @@ typings/
 
 # Optional npm cache directory
 .npm
+npm-debug.log*
 
 # Optional eslint cache
 .eslintcache
@@ -59,3 +60,21 @@ typings/
 
 # next.js build output
 .next
+
+# others
+.vscode/
+
+.ionic/
+.sourcemaps/
+.sass-cache/
+.tmp/
+.versions/
+coverage/
+www/
+node_modules/
+tmp/
+temp/
+platforms/
+plugins/
+plugins/android.json
+plugins/ios.json
