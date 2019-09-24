@@ -62,6 +62,7 @@ npm-debug.log*
 .next
 
 # others
+.local_settings.ini
 .vscode/
 
 .ionic/

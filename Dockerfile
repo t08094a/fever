@@ -13,10 +13,13 @@ ENV GRADLE_HOME=/opt/gradle \
 
 ENV PATH=${GRADLE_HOME}/bin:${JAVA_HOME}/bin:${ANDROID_HOME}/tools/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/build-tools:${ANDROID_HOME}/emulator:${PATH}
 
-# INSTALL JAVA and cleanup apt
-RUN apt-get update && \
+# INSTALL JAVA, python libs, create dir and cleanup apt
+RUN apt-get update -y && \
     apt-get full-upgrade -y && \
     apt-get install -y openjdk-8-jdk openjdk-8-jre && \
+    apt-get install -y python3 python3-pip && \
+    pip3 install inquirer colorama && \
+    mkdir -p /dev && \
     rm -rf /lib/apt/listspt/lists/*
 
 #RUN update-java-alternatives -l
@@ -48,11 +51,8 @@ RUN ${ANDROID_HOME}/tools/bin/sdkmanager --update && \
     "platforms;android-${ANDROID_VERSION}" \
     "platform-tools"
 
-# TEST FIRST BUILD so that it will be faster later
-RUN mkdir -p /dev && \
-    cd dev && \
-    ionic cordova build android --prod --no-interactive --release
+ADD ./docker_tools/runner.py /docker_tools/
 
 WORKDIR /dev
 EXPOSE 8100 35729
-CMD ["ionic", "serve"]
+CMD ["/docker_tools/runner.py"]
