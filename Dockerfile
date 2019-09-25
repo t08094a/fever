@@ -1,13 +1,15 @@
 FROM node:lts
 
-ARG USER_ID=10
-ARG GROUP_ID=10
+#ARG USER_ID=1000
+#ARG GROUP_ID=1000
 
 # map user if --build-args USER_ID und GROUP_ID are set
-RUN if [ ${USER_ID:-0} -ne 0 ] && [ ${GROUP_ID:-0} -ne 0 ]; then \
-        groupadd -g ${GROUP_ID} newuser && \
-        useradd --disable-password --no-log-init -r -u ${USER_ID} -g newuser -G sudo -s /bin/bash newuser \
-    ;fi
+#RUN if [ ${USER_ID:-0} -ne 0 ] && [ ${GROUP_ID:-0} -ne 0 ]; then \
+#        if [ ${USER_ID:-0} -ne 1000 ] && [ ${GROUP_ID:-0} -ne 1000 ]; then \
+#            groupadd -g ${GROUP_ID} newuser && \
+#            useradd --disable-password --no-log-init -r -u ${USER_ID} -g newuser -m /bin/bash newuser \
+#        ;fi \
+#    ;fi
 
 # ENVIRONNEMENT
 ENV GRADLE_HOME=/opt/gradle \
@@ -18,7 +20,8 @@ ENV GRADLE_HOME=/opt/gradle \
     SDK_URL="https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip" \
     ANDROID_HOME="/usr/local/android-sdk" \
     ANDROID_VERSION=29 \ 
-    ANDROID_BUILD_TOOLS_VERSION=29.0.2
+    ANDROID_BUILD_TOOLS_VERSION=29.0.2 \
+    HOME=/home/node
 
 ENV PATH=/docker_tools:${GRADLE_HOME}/bin:${JAVA_HOME}/bin:${ANDROID_HOME}/tools/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/build-tools:${ANDROID_HOME}/emulator:${PATH}
 
@@ -33,8 +36,10 @@ RUN apt-get update -y && \
 #RUN update-java-alternatives -l
 #RUN echo $JAVA_HOME && ${JAVA_HOME}/bin/java -version
 
-# INSTALL IONIC AND CORDOVA
-RUN npm install -g ionic cordova
+# INSTALL IONIC AND CORDOVA and correct the permissions to user 'node'
+RUN npm install -g ionic cordova && \
+    chown -R node:node /home/node/.config && \
+    chown -R node:node /home/node/.npm
 
 # INSTALL Graddle
 RUN mkdir -p ${GRADLE_HOME} && \
@@ -60,8 +65,6 @@ RUN ${ANDROID_HOME}/tools/bin/sdkmanager --update && \
     "platform-tools"
 
 ADD ./docker_tools/runner.py /docker_tools/
-
-USER newuser
 
 EXPOSE 8100 35729
 CMD ["/docker_tools/runner.py"]

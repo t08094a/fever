@@ -26,7 +26,7 @@ create_app = 'Erzeuge App Template'
 start_bash = 'Starte Bash in Docker'
 cancel = 'Abbruch'
 
-def write_content_to_local_settings(section, key, value):
+def write_content_to_local_settings(section: str, key: str, value: str):
     """
     Writes a key value pair to a specific section in the local settings file
 
@@ -47,7 +47,7 @@ def write_content_to_local_settings(section, key, value):
         config.write(configfile)
 
 
-def read_content_from_local_settings(section, key):
+def read_content_from_local_settings(section: str, key: str):
     config = configparser.ConfigParser()
     config.read(settings_file_name)
 
@@ -72,16 +72,20 @@ def get_docker_images_based_on_settings():
 
 
 def move_all_files(srcDir: str, destDir: str):
-    sourceFiles = os.listdir(srcDir)
+    print('src: ' + srcDir)
+    print('dest: ' + destDir)
 
+    sourceFiles = [os.path.join(srcDir, file) for file in os.listdir(srcDir)]
+    
     for filePath in sourceFiles:
+        print('mv ' + filePath)
         shutil.move(filePath, destDir)
 
 def action_build_docker_image():
     print(build_docker_image)
 
     # DOCKER_BUILDKIT=1
-    os.environ['DOCKER_BUILDKIT'] = "1" # visible in this process + all children
+    #os.environ['DOCKER_BUILDKIT'] = "1" # visible in this process + all children
 
     questions = [
         inquirer.Text('name', message='Welchen Namen soll der Build erhalten?', default='t08094a/ionic'),
@@ -132,12 +136,14 @@ def action_create_app():
     os.makedirs(app_name, exist_ok=True)
     local_volume = os.path.join(os.getcwd(), app_name)
 
-    cmd = 'docker run --rm --volume {}:/myApp/ -w /myApp -it {} ionic start {} --no-git'.format(local_volume, image, app_name)
+    cmd = 'docker run --rm -v {}:/myApp -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro -v /etc/shadow:/etc/shadow:ro -w /myApp -it -u {}:{} {} bash -c \'ionic start {} --no-git\''.format(local_volume, os.getuid(), os.getgid(), image, app_name)
     print(Fore.CYAN + 'call: ' + cmd)
     completed = subprocess.run(cmd, shell=True, check=True)
 
-    os.renames(os.path.join(local_volume, app_name), local_volume)
-    
+    # move all created files to the parent directory and remove the temp one
+    tmp_src_path = os.path.join(local_volume, app_name)
+    move_all_files(tmp_src_path, local_volume)
+    os.rmdir(tmp_src_path)
 
 
 def action_start_bash():
@@ -156,7 +162,7 @@ def action_start_bash():
     else:
         image = docker_image_names[0]
 
-    cmd = 'docker run --rm --volume {}:/myApp --volume /etc/passwd:/etc/passwd:ro --volume /etc/group:/etc/group:ro -w /myApp -it -u {}:{} {} bash'.format(os.getcwd(), os.getuid(), os.getgid(), image)
+    cmd = 'docker run --rm -v {}:/myApp -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro -v /etc/shadow:/etc/shadow:ro -w /myApp -it -u {}:{} {} bash '.format(os.getcwd(), os.getuid(), os.getgid(), image)
     print(Fore.CYAN + 'call: ' + cmd)
     completed = subprocess.run(cmd, shell=True, check=True)
 
