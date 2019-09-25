@@ -1,5 +1,13 @@
 FROM node:lts
 
+ARG USER_ID=10
+ARG GROUP_ID=10
+
+RUN if [ ${USER_ID:-0} -ne 0 ] && [ ${GROUP_ID:-0} -ne 0 ]; then \
+        groupadd -g ${GROUP_ID} newuser && \
+        useradd --disable-password --no-log-init -r -u ${USER_ID} -g newuser -G sudo -s /bin/bash newuser \
+    ;fi
+
 # ENVIRONNEMENT
 ENV GRADLE_HOME=/opt/gradle \
     GRADLE_VERSION=5.6.2 \
@@ -51,6 +59,8 @@ RUN ${ANDROID_HOME}/tools/bin/sdkmanager --update && \
     "platform-tools"
 
 ADD ./docker_tools/runner.py /docker_tools/
+
+USER newuser
 
 EXPOSE 8100 35729
 CMD ["/docker_tools/runner.py"]

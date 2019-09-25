@@ -13,7 +13,8 @@ import subprocess
 import colorama
 from colorama import Fore, Back, Style, init
 import os
-import io
+import shutil
+#import io
 import configparser
 
 init(autoreset=True)
@@ -70,6 +71,12 @@ def get_docker_images_based_on_settings():
     return items
 
 
+def move_all_files(srcDir: str, destDir: str):
+    sourceFiles = os.listdir(srcDir)
+
+    for filePath in sourceFiles:
+        shutil.move(filePath, destDir)
+
 def action_build_docker_image():
     print(build_docker_image)
 
@@ -93,6 +100,8 @@ def action_build_docker_image():
 
     cmd = [
         'docker', 'build',
+        '--build-arg', 'USER_ID=$(id -u ${USER})',
+        '--build-arg', 'GROUP_ID=$(id -g ${USER})',
         '-t', name + ':' + version
     ]
 
@@ -120,9 +129,15 @@ def action_create_app():
     app_name = answers['app_name']
     image = answers['image']
 
-    cmd = 'docker run --rm --volume ${PWD}:/dev/ -it ' + image + ' ionic start --no-git ' + app_name
+    os.makedirs(app_name, exist_ok=True)
+    local_volume = os.path.join(os.getcwd(), app_name)
+
+    cmd = 'docker run --rm --volume {}:/myApp/ -w /myApp -it {} ionic start {} --no-git'.format(local_volume, image, app_name)
     print(Fore.CYAN + 'call: ' + cmd)
-    completed = subprocess.run(cmd, shell=True)
+    completed = subprocess.run(cmd, shell=True, check=True)
+
+    os.renames(os.path.join(local_volume, app_name), local_volume)
+    
 
 
 def action_start_bash():
@@ -137,13 +152,13 @@ def action_start_bash():
             inquirer.List('image', message='Welches Image soll zur Ausführung verwendet werden?', choices=docker_image_names, default=docker_image_names[0])
         ]
         answer = inquirer.prompt(questions)
-        image = answer[image]
+        image = answer['image']
     else:
         image = docker_image_names[0]
 
-    cmd = 'docker run --rm --volume ${PWD}:/dev/ -it ' + image + ' bash'
+    cmd = 'docker run --rm --volume {}:/myApp --volume /etc/passwd:/etc/passwd:ro --volume /etc/group:/etc/group:ro -w /myApp -it -u {}:{} {} bash'.format(os.getcwd(), os.getuid(), os.getgid(), image)
     print(Fore.CYAN + 'call: ' + cmd)
-    completed = subprocess.run(cmd, shell=True)
+    completed = subprocess.run(cmd, shell=True, check=True)
 
 
 def action_cancel():
