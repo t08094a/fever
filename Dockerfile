@@ -3,6 +3,7 @@ FROM node:lts
 ARG USER_ID=10
 ARG GROUP_ID=10
 
+# map user if --build-args USER_ID und GROUP_ID are set
 RUN if [ ${USER_ID:-0} -ne 0 ] && [ ${GROUP_ID:-0} -ne 0 ]; then \
         groupadd -g ${GROUP_ID} newuser && \
         useradd --disable-password --no-log-init -r -u ${USER_ID} -g newuser -G sudo -s /bin/bash newuser \
