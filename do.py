@@ -22,6 +22,7 @@ settings_file_name = '.local_settings.ini'
 
 build_docker_image = 'Build Docker Image'
 create_app = 'Erzeuge App Template'
+start_bash = 'Starte Bash in Docker'
 cancel = 'Abbruch'
 
 def write_content_to_local_settings(section, key, value):
@@ -44,12 +45,29 @@ def write_content_to_local_settings(section, key, value):
     with open(settings_file_name, 'w') as configfile:
         config.write(configfile)
 
+
 def read_content_from_local_settings(section, key):
     config = configparser.ConfigParser()
     config.read(settings_file_name)
 
     value = config.get(section, key, fallback=None)
     return value
+
+
+def get_docker_images_based_on_settings():
+    image_name = read_content_from_local_settings('Docker', 'image_name')
+    
+    docker_image_args = ['docker', 'images', '--format', '\"table {{.Repository}}||{{.Tag}}\"']
+
+    if(image_name):
+        docker_image_args.extend(['--filter=reference=\'' + image_name + '\''])
+    
+    completed = subprocess.run(' '.join(docker_image_args), shell=True, stdout=subprocess.PIPE, universal_newlines=True, check=True)
+    lines = str(completed.stdout).splitlines()[1::]
+    items = [n.split('||') for n in lines]
+    items = [':'.join(n) for n in items]
+
+    return items
 
 
 def action_build_docker_image():
@@ -91,32 +109,41 @@ def action_build_docker_image():
 def action_create_app():
     print(create_app)
 
-    image_name = read_content_from_local_settings('Docker', 'image_name')
-    
-    docker_image_args = ['docker', 'images', '--format', '\"table {{.Repository}}||{{.Tag}}\"']
-
-    if(image_name):
-        docker_image_args.extend(['--filter=reference=\'' + image_name + '\''])
-    
-    completed = subprocess.run(' '.join(docker_image_args), shell=True, stdout=subprocess.PIPE, universal_newlines=True, check=True)
-    lines = str(completed.stdout).splitlines()[1::]
-    items = [n.split('||') for n in lines]
-    items = [':'.join(n) for n in items]
+    docker_image_names = get_docker_images_based_on_settings()
         
     questions = [inquirer.Text('app_name', message='Welchen Namen soll die App erhalten?', validate=True)]
 
-    if(len(items) > 1):
-        questions.append(inquirer.List('image', message='Welches Image soll zur Ausführung verwendet werden?', choices=items, default=items[0]))
+    if(len(docker_image_names) > 1):
+        questions.append(inquirer.List('image', message='Welches Image soll zur Ausführung verwendet werden?', choices=docker_image_names, default=docker_image_names[0]))
 
     answers = inquirer.prompt(questions)
     app_name = answers['app_name']
     image = answers['image']
 
-    cmd = 'docker run --rm --volume `pwd`:/dev/ -it ' + image + ' ionic start ' + app_name + './ sidemenu'
+    cmd = 'docker run --rm --volume ${PWD}:/dev/ -it ' + image + ' ionic start --no-git ' + app_name
     print(Fore.CYAN + 'call: ' + cmd)
     completed = subprocess.run(cmd, shell=True)
 
-    
+
+def action_start_bash():
+    print(start_bash)
+
+    docker_image_names = get_docker_images_based_on_settings()
+
+    image = ''
+
+    if(len(docker_image_names) > 1):
+        questions = [
+            inquirer.List('image', message='Welches Image soll zur Ausführung verwendet werden?', choices=docker_image_names, default=docker_image_names[0])
+        ]
+        answer = inquirer.prompt(questions)
+        image = answer[image]
+    else:
+        image = docker_image_names[0]
+
+    cmd = 'docker run --rm --volume ${PWD}:/dev/ -it ' + image + ' bash'
+    print(Fore.CYAN + 'call: ' + cmd)
+    completed = subprocess.run(cmd, shell=True)
 
 
 def action_cancel():
@@ -129,6 +156,7 @@ if __name__ == '__main__':
     options = {
         build_docker_image : action_build_docker_image,
         create_app : action_create_app,
+        start_bash : action_start_bash,
         cancel : action_cancel
     }
 
