@@ -11,11 +11,11 @@ Requirements:
 import inquirer
 import subprocess
 import colorama
-from colorama import Fore, Back, Style, init
+from colorama import Fore, init
 import os
 import shutil
-#import io
 import configparser
+import signal
 
 init(autoreset=True)
 
@@ -23,6 +23,7 @@ settings_file_name = '.local_settings.ini'
 
 build_docker_image = 'Build Docker Image'
 create_app = 'Erzeuge App Template'
+ionic_serve = 'Debug mit ionic serve'
 start_bash = 'Starte Bash in Docker'
 cancel = 'Abbruch'
 
@@ -47,11 +48,11 @@ def write_content_to_local_settings(section: str, key: str, value: str):
         config.write(configfile)
 
 
-def read_content_from_local_settings(section: str, key: str):
+def read_content_from_local_settings(section: str, key: str, fallback=configparser._UNSET):
     config = configparser.ConfigParser()
     config.read(settings_file_name)
 
-    value = config.get(section, key, fallback=None)
+    value = config.get(section, key, fallback=fallback)
     return value
 
 
@@ -72,13 +73,9 @@ def get_docker_images_based_on_settings():
 
 
 def move_all_files(srcDir: str, destDir: str):
-    print('src: ' + srcDir)
-    print('dest: ' + destDir)
-
     sourceFiles = [os.path.join(srcDir, file) for file in os.listdir(srcDir)]
     
     for filePath in sourceFiles:
-        print('mv ' + filePath)
         shutil.move(filePath, destDir)
 
 def action_build_docker_image():
@@ -90,7 +87,8 @@ def action_build_docker_image():
     questions = [
         inquirer.Text('name', message='Welchen Namen soll der Build erhalten?', default='t08094a/ionic'),
         inquirer.Text('version', message='Welche Version soll der Build erhalten?', default='1.0.0'),
-        inquirer.Confirm('latest', message='Soll mit \'latest\' geflagt werden?', default=True)
+        inquirer.Confirm('latest', message='Soll mit \'latest\' geflagt werden?', default=True),
+        inquirer.Confirm('with_cache', message='Soll mit Dockers Cache gebaut werden?', default=True)
     ]
 
     answers = inquirer.prompt(questions)
@@ -98,6 +96,7 @@ def action_build_docker_image():
     name = answers['name']
     version = answers['version']
     latest = answers['latest']
+    with_cache = answers['with_cache']
 
     # save the image name in an invisible file
     write_content_to_local_settings('Docker', 'image_name', name)
@@ -111,6 +110,9 @@ def action_build_docker_image():
 
     if(latest):
         cmd.extend(['-t', name + ':latest'])
+
+    if(not with_cache):
+        cmd.extend(['--no-cache'])
 
     cmd.extend(['.'])
     
@@ -133,6 +135,8 @@ def action_create_app():
     app_name = answers['app_name']
     image = answers['image']
 
+    write_content_to_local_settings('App', 'name', app_name)
+
     os.makedirs(app_name, exist_ok=True)
     local_volume = os.path.join(os.getcwd(), app_name)
 
@@ -144,6 +148,32 @@ def action_create_app():
     tmp_src_path = os.path.join(local_volume, app_name)
     move_all_files(tmp_src_path, local_volume)
     os.rmdir(tmp_src_path)
+
+def action_ionic_serve():
+    print(ionic_serve)
+
+    docker_image_names = get_docker_images_based_on_settings()
+        
+    questions = [inquirer.List('image', message='Welches Image soll zur Ausführung verwendet werden?', choices=docker_image_names, default=docker_image_names[0])]
+
+    answers = inquirer.prompt(questions)
+    image = answers['image']
+
+    app_name: str = read_content_from_local_settings('App', 'name')
+    if(not app_name):
+        print(Fore.RED + '\'name\' ist nicht in der Sektion \'App\' definiert')
+        return
+
+    port = read_content_from_local_settings('App', 'development_port', fallback=8100)
+    working_dir = os.path.join(os.getcwd(), app_name)
+
+    cmd = 'docker run --rm --init -e CHOKIDAR_USEPOLLING=\'1\' -p 3000:3000 -p 5000:5000 -p {port}:8100 -p 8080:8080 -p 9876:9876 -p 35729:35729 -v {}:/myApp -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro -v /etc/shadow:/etc/shadow:ro -w /myApp -it -u {}:{} {} ionic serve --all -b --address 0.0.0.0 --port {port}'.format(working_dir, os.getuid(), os.getgid(), image, port=port)
+    print(Fore.CYAN + 'call: ' + cmd)
+    try:
+        p = subprocess.Popen(cmd.split()).communicate()
+    except KeyboardInterrupt:
+        print('SIGINT received')
+        p.send_signal(signal.SIGINT)
 
 
 def action_start_bash():
@@ -162,9 +192,11 @@ def action_start_bash():
     else:
         image = docker_image_names[0]
 
-    cmd = 'docker run --rm -v {}:/myApp -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro -v /etc/shadow:/etc/shadow:ro -w /myApp -it -u {}:{} {} bash '.format(os.getcwd(), os.getuid(), os.getgid(), image)
+    port = read_content_from_local_settings('App', 'development_port', fallback=8100)
+
+    cmd = 'docker run --rm -e CHOKIDAR_USEPOLLING=\'1\' -p 3000:3000 -p 5000:5000 -p {}:8100 -p 8080:8080 -p 9876:9876 -p 35729:35729 -v {}:/myApp -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro -v /etc/shadow:/etc/shadow:ro -w /myApp -it -u {}:{} {} bash '.format(port, os.getcwd(), os.getuid(), os.getgid(), image)
     print(Fore.CYAN + 'call: ' + cmd)
-    completed = subprocess.run(cmd, shell=True, check=True)
+    completed = subprocess.run(cmd, shell=True)
 
 
 def action_cancel():
@@ -177,6 +209,7 @@ if __name__ == '__main__':
     options = {
         build_docker_image : action_build_docker_image,
         create_app : action_create_app,
+        ionic_serve : action_ionic_serve,
         start_bash : action_start_bash,
         cancel : action_cancel
     }
@@ -184,7 +217,7 @@ if __name__ == '__main__':
     questions = [
         inquirer.List('selection',
                       message="Welche Aktion soll ausgeführt werden?",
-                      choices=options.keys())
+                      choices=list(options))
     ]
 
     answer = inquirer.prompt(questions)

@@ -21,17 +21,27 @@ ENV GRADLE_HOME=/opt/gradle \
     ANDROID_HOME="/usr/local/android-sdk" \
     ANDROID_VERSION=29 \ 
     ANDROID_BUILD_TOOLS_VERSION=29.0.2 \
-    HOME=/home/node
+    \
+    HOME=/home/node \
+    LANG=de_DE.UTF8 \
+    LANGUAGE=de
 
 ENV PATH=/docker_tools:${GRADLE_HOME}/bin:${JAVA_HOME}/bin:${ANDROID_HOME}/tools/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/build-tools:${ANDROID_HOME}/emulator:${PATH}
 
 # INSTALL JAVA, python libs, create dir and cleanup apt
 RUN apt-get update -y && \
     apt-get full-upgrade -y && \
+    apt-get -y install locales && \
     apt-get install -y openjdk-8-jdk openjdk-8-jre && \
     apt-get install -y python3 python3-pip && \
     pip3 install inquirer colorama && \
-    rm -rf /lib/apt/listspt/lists/*
+    rm -rf /lib/apt/listspt/lists/* && \
+    # set locale settings
+    update-locale LANG=de_DE.UTF-8 LANGUAGE LC_ALL && \
+    echo "LC_ALL=de_DE.UTF-8" >> /etc/environment && \
+    echo "de_DE.UTF-8 UTF-8" >> /etc/locale.gen && \
+    echo "LANG=de_DE.UTF-8" > /etc/locale.conf && \
+    locale-gen de_DE.UTF-8
 
 #RUN update-java-alternatives -l
 #RUN echo $JAVA_HOME && ${JAVA_HOME}/bin/java -version
