@@ -6,7 +6,7 @@ import { LoadingController } from '@ionic/angular';
 })
 export class LoadingService {
 
-    isLoading = false;
+    private isLoading = false;
 
     constructor(public loadingController: LoadingController) { }
 
@@ -31,7 +31,7 @@ export class LoadingService {
         }
 
         this.isLoading = false;
-        
-        return await this.loadingController.dismiss({ confirmed: true }).then(() => console.log('dismissed'));
+
+        return await this.loadingController.dismiss().then(() => console.log('dismissed'));
     }
 }
