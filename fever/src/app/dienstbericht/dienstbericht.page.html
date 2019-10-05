@@ -5,7 +5,7 @@
 </ion-header>
 
 <ion-list>
-  <ion-item (click)="editEvent(event)" detail *ngFor="let event of events$ | async">
+  <ion-item (click)="editEvent(event)" href="." detail *ngFor="let event of events$ | async">
     <ion-icon name="document" size="large" style="margin-right: 10px"></ion-icon>
     <ion-label class="ion-text-wrap">
       <h2>{{event.title}}</h2>
