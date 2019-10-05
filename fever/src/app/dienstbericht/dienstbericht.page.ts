@@ -1,5 +1,7 @@
+import { LoadingService } from './../service/loading.service';
 import { Component, OnInit } from '@angular/core';
-import { DienstberichtService } from './service/dienstbericht.service';
+import { DienstberichtService, EventItem } from './service/dienstbericht.service';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-dienstbericht',
@@ -8,13 +10,38 @@ import { DienstberichtService } from './service/dienstbericht.service';
 })
 export class DienstberichtPage implements OnInit {
 
-  constructor(private dienstberichtService: DienstberichtService) { }
+  public events$: Observable<EventItem[]>;
+
+  constructor(private loadingService: LoadingService,
+              private dienstberichtService: DienstberichtService) { }
 
   ngOnInit() {
+    this.loadData();
   }
 
-  public add() {
+  private loadData() {
+    this.loadingService.present('Loading ...', 5000);
+
+    this.events$ = this.dienstberichtService.getEvents();
+
+    this.dienstberichtService.getEvents().subscribe(
+      x => {
+        this.loadingService.dismiss();
+      },
+      err => {
+        console.error('Observer got an error: ' + err);
+        this.loadingService.dismiss();
+      },
+      () => console.log('Observer got complete notification')
+    );
+  }
+
+  public createNewEvent() {
     console.log('öffne neue page zum Anlegen eines Berichteintrags');
     // todo: öffne neue page zum anlegen
+  }
+
+  public editEvent(event) {
+    console.log('bearbeite Berichteintrag: ' + event.title);
   }
 }

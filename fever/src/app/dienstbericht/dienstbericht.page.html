@@ -4,10 +4,23 @@
   </ion-toolbar>
 </ion-header>
 
+<ion-list>
+  <ion-item (click)="editEvent(event)" detail *ngFor="let event of events$ | async">
+    <ion-icon name="document" size="large" style="margin-right: 10px"></ion-icon>
+    <ion-label class="ion-text-wrap">
+      <h2>{{event.title}}</h2>
+      <h3>{{event.duration}}</h3>
+      <p>{{event.extract}}</p>
+    </ion-label>
+  </ion-item>
+</ion-list>
+
+
 <ion-content>
   <ion-fab vertical="bottom" horizontal="end" slot="fixed">
-    <ion-fab-button color="danger" (click)="add()">
+    <ion-fab-button color="danger" (click)="createNewEvent()">
       <ion-icon name="add"></ion-icon>
     </ion-fab-button>
   </ion-fab>
 </ion-content>
+

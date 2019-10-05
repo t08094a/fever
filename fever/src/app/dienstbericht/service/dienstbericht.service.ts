@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { Observable, of, BehaviorSubject } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -7,24 +8,63 @@ export class DienstberichtService {
 
   constructor() { }
 
-  public events = [
-    {
-      startDate: new Date('2019-02-16T16:00'),
-      endDate: new Date('2019-02-16T18:00'),
-      title: 'Event1',
-      recurring: new NoneRecurringAppointment(),
-      desciption: 'Event1',
-      categories: ['Wehr', 'Jugend']
-    },
-    {
-      startDate: new Date('2019-02-17T16:01'),
-      endDate: new Date('2019-02-17T18:00'),
-      title: 'Event2',
-      recurring: new NoneRecurringAppointment(),
-      desciption: 'Event2',
-      categories: ['Einsatz']
-    },
-  ];
+  // public addEvent(newEvent): Observable {
+  //   // todo: speichere das Objekt in der DB
+
+  //   this._events.next(this._events.getValue().push(newEvent));
+
+  //   return of();
+  // }
+
+  // public deleteEvent(deleted): Observable {
+  //   // todo: lösche das Objekt aus der DB
+
+  //   let evts = this._events.getValue();
+  //   let index = evts.findIndex((evt) => evt.id === deleted.id);
+  //   this._events.next(evts.delete(index));
+
+  //   let obs: Observable = Observable.create();
+
+  //   return obs;
+  // }
+
+  public getEvents(): Observable<EventItem[]> {
+    return of<EventItem[]>([
+      {
+        id: 'b5d7e089-e06a-4ad9-aa7b-f7b2f50176de',
+        startDate: new Date('2019-02-16T16:00'),
+        endDate: new Date('2019-02-16T18:00'),
+        title: 'Event1',
+        // recurring: new NoneRecurringAppointment(),
+        description: 'Event1',
+        categories: ['Wehr', 'Jugend'],
+        duration: '16.02.2019    16:00 - 18:00 Uhr',
+        extract: 'Folgendes passierte ...'
+      },
+      {
+        id: 'a283f7ca-dc1c-476c-a486-329680d152eb',
+        startDate: new Date('2019-02-17T16:01'),
+        endDate: new Date('2019-02-17T18:00'),
+        title: 'Event2',
+        // recurring: new NoneRecurringAppointment(),
+        description: 'Event2',
+        categories: ['Einsatz'],
+        duration: '16.02.2019    16:00 - 18:00 Uhr',
+        extract: 'Folgendes passierte ...'
+      }
+    ]);
+  }
+}
+
+export interface EventItem {
+  id: string;
+  startDate: Date;
+  endDate: Date;
+  title: string;
+  description: string;
+  extract: string;
+  categories: string[];
+  duration: string;
 }
 
 class Event {
