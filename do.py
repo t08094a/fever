@@ -16,6 +16,7 @@ import os
 import shutil
 import configparser
 import signal
+from collections import OrderedDict
 
 init(autoreset=True)
 
@@ -24,6 +25,7 @@ settings_file_name = '.local_settings.ini'
 build_docker_image = 'Build Docker Image'
 create_app = 'Erzeuge App Template'
 ionic_serve = 'Debug mit ionic serve'
+internal_runner_script = 'Starte Runner Script in Docker'
 start_bash = 'Starte Bash in Docker'
 cancel = 'Abbruch'
 
@@ -91,7 +93,7 @@ def action_build_docker_image():
         inquirer.Confirm('with_cache', message='Soll mit Dockers Cache gebaut werden?', default=True)
     ]
 
-    answers = inquirer.prompt(questions)
+    answers = inquirer.prompt(questions, raise_keyboard_interrupt=True)
     
     name = answers['name']
     version = answers['version']
@@ -131,7 +133,7 @@ def action_create_app():
     if(len(docker_image_names) > 1):
         questions.append(inquirer.List('image', message='Welches Image soll zur Ausführung verwendet werden?', choices=docker_image_names, default=docker_image_names[0]))
 
-    answers = inquirer.prompt(questions)
+    answers = inquirer.prompt(questions, raise_keyboard_interrupt=True)
     app_name = answers['app_name']
     image = answers['image']
 
@@ -156,7 +158,7 @@ def action_ionic_serve():
         
     questions = [inquirer.List('image', message='Welches Image soll zur Ausführung verwendet werden?', choices=docker_image_names, default=docker_image_names[0])]
 
-    answers = inquirer.prompt(questions)
+    answers = inquirer.prompt(questions, raise_keyboard_interrupt=True)
     image = answers['image']
 
     app_name: str = read_content_from_local_settings('App', 'name')
@@ -167,7 +169,41 @@ def action_ionic_serve():
     port = read_content_from_local_settings('App', 'development_port', fallback=8100)
     working_dir = os.path.join(os.getcwd(), app_name)
 
-    cmd = 'docker run --rm --init -e CHOKIDAR_USEPOLLING=\'1\' -p 3000:3000 -p 5000:5000 -p {port}:8100 -p 8080:8080 -p 9876:9876 -p 35729:35729 -v {}:/myApp -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro -v /etc/shadow:/etc/shadow:ro -w /myApp -it -u {}:{} {} ionic serve --all -b --address 0.0.0.0 --port {port}'.format(working_dir, os.getuid(), os.getgid(), image, port=port)
+    cmd = """
+        docker run --rm --init \
+        -e CHOKIDAR_USEPOLLING=\'1\' -e IONIC_PORT=\'{port}\' \
+        -p 3000:3000 -p 5000:5000 -p {port}:8100 -p 8080:8080 -p 9876:9876 -p 35729:35729 \
+        -v {}:/myApp -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro -v /etc/shadow:/etc/shadow:ro \
+        -w /myApp -it -u {}:{} {} \
+        ionic serve --all -b --address 0.0.0.0 --port {port}""" \
+        .format(working_dir, os.getuid(), os.getgid(), image, port=port).lstrip()
+
+    print(Fore.CYAN + 'call: ' + cmd)
+    try:
+        p = subprocess.Popen(cmd.split()).communicate()
+    except KeyboardInterrupt:
+        print('SIGINT received')
+        p.send_signal(signal.SIGINT)
+
+def action_internal_runner_script():
+    print(internal_runner_script)
+
+    docker_image_names = get_docker_images_based_on_settings()
+        
+    questions = [inquirer.List('image', message='Welches Image soll zur Ausführung verwendet werden?', choices=docker_image_names, default=docker_image_names[0])]
+
+    answers = inquirer.prompt(questions, raise_keyboard_interrupt=True)
+    image = answers['image']
+
+    app_name: str = read_content_from_local_settings('App', 'name')
+    if(not app_name):
+        print(Fore.RED + '\'name\' ist nicht in der Sektion \'App\' definiert')
+        return
+
+    port = read_content_from_local_settings('App', 'development_port', fallback=8100)
+    working_dir = os.path.join(os.getcwd(), app_name)
+
+    cmd = 'docker run --rm --init -e CHOKIDAR_USEPOLLING=\'1\' -p 3000:3000 -p 5000:5000 -p {port}:8100 -p 8080:8080 -p 9876:9876 -p 35729:35729 -v {}:/myApp -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro -v /etc/shadow:/etc/shadow:ro -w /myApp -it -u {}:{} {} runner.py'.format(working_dir, os.getuid(), os.getgid(), image, port=port)
     print(Fore.CYAN + 'call: ' + cmd)
     try:
         p = subprocess.Popen(cmd.split()).communicate()
@@ -187,14 +223,21 @@ def action_start_bash():
         questions = [
             inquirer.List('image', message='Welches Image soll zur Ausführung verwendet werden?', choices=docker_image_names, default=docker_image_names[0])
         ]
-        answer = inquirer.prompt(questions)
+        answer = inquirer.prompt(questions, raise_keyboard_interrupt=True)
         image = answer['image']
     else:
         image = docker_image_names[0]
 
     port = read_content_from_local_settings('App', 'development_port', fallback=8100)
 
-    cmd = 'docker run --rm -e CHOKIDAR_USEPOLLING=\'1\' -p 3000:3000 -p 5000:5000 -p {}:8100 -p 8080:8080 -p 9876:9876 -p 35729:35729 -v {}:/myApp -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro -v /etc/shadow:/etc/shadow:ro -w /myApp -it -u {}:{} {} bash '.format(port, os.getcwd(), os.getuid(), os.getgid(), image)
+    cmd = """
+        docker run --rm \
+        -e CHOKIDAR_USEPOLLING=\'1\' -e IONIC_PORT=\'{port}\' \
+        -p 3000:3000 -p 5000:5000 -p {port}:8100 -p 8080:8080 -p 9876:9876 -p 35729:35729 \
+        -v {}:/myApp -v /etc/passwd:/etc/passwd:ro -v /etc/group:/etc/group:ro -v /etc/shadow:/etc/shadow:ro \
+        -w /myApp -it -u {}:{} {} bash """ \
+        .format(os.getcwd(), os.getuid(), os.getgid(), image, port=port).lstrip()
+    
     print(Fore.CYAN + 'call: ' + cmd)
     completed = subprocess.run(cmd, shell=True)
 
@@ -206,13 +249,14 @@ def action_cancel():
 
 if __name__ == '__main__':
 
-    options = {
-        build_docker_image : action_build_docker_image,
-        create_app : action_create_app,
-        ionic_serve : action_ionic_serve,
-        start_bash : action_start_bash,
-        cancel : action_cancel
-    }
+    options = OrderedDict([
+        (build_docker_image, action_build_docker_image),
+        (create_app, action_create_app),
+        (ionic_serve, action_ionic_serve),
+        (internal_runner_script, action_internal_runner_script),
+        (start_bash, action_start_bash),
+        (cancel, action_cancel)
+    ])
 
     questions = [
         inquirer.List('selection',
@@ -220,7 +264,10 @@ if __name__ == '__main__':
                       choices=list(options))
     ]
 
-    answer = inquirer.prompt(questions)
-    target = answer['selection']
+    try:
+        answer = inquirer.prompt(questions, raise_keyboard_interrupt=True)
+        target = answer['selection']
 
-    options[target]()
+        options[target]()
+    except KeyboardInterrupt:
+        pass
