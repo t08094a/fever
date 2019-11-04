@@ -1,0 +1,23 @@
+<ion-content>
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title>Login</ion-card-title>
+    </ion-card-header>
+
+    <ion-card-content>
+      <form (ngSubmit)="login()" #registerForm="ngForm">
+        <ion-list>
+          <ion-item>
+            <ion-label position="floating">E-Mail:</ion-label>
+            <ion-input type="text" clearInput placeholder="E-Mail" [(ngModel)]="email" name="username" required></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label position="floating">Passwort:</ion-label>
+            <ion-input type="text" clearinput type="password" placeholder="Passwort" [(ngModel)]="password" name="password" required></ion-input>
+          </ion-item>
+          <ion-button type="submit" [disabled]="!registerForm.form.valid">Login</ion-button>
+        </ion-list>
+      </form>
+    </ion-card-content>
+  </ion-card>
+</ion-content>

@@ -1,3 +1,5 @@
+import { AdminGuard } from './core/admin.guard';
+import { AuthGuard } from './core/auth.guard';
 import { NgModule } from '@angular/core';
 import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
 
@@ -13,11 +15,17 @@ const routes: Routes = [
   },
   {
     path: 'list',
-    loadChildren: () => import('./list/list.module').then(m => m.ListPageModule)
+    loadChildren: () => import('./list/list.module').then(m => m.ListPageModule),
+    canActivate: [AuthGuard, AdminGuard]
   },
   {
     path: 'dienstbericht',
-    loadChildren: () => import('./dienstbericht/dienstbericht.module').then(m => m.DienstberichtPageModule)
+    loadChildren: () => import('./dienstbericht/dienstbericht.module').then(m => m.DienstberichtPageModule),
+    canActivate: [AuthGuard, AdminGuard]
+  },
+  {
+    path: 'login',
+    loadChildren: () => import('./login/login.module').then(m => m.LoginPageModule)
   }
 ];
 

@@ -1,12 +1,17 @@
 import { Injectable } from '@angular/core';
 import { Observable, of, BehaviorSubject } from 'rxjs';
+import { AngularFirestore } from '@angular/fire/firestore';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DienstberichtService {
 
-  constructor() { }
+  items: Observable<any[]>;
+
+  constructor(private db: AngularFirestore) {
+    this.items = db.collection('list').valueChanges();
+  }
 
   // public addEvent(newEvent): Observable {
   //   // todo: speichere das Objekt in der DB
